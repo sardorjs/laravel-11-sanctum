@@ -1,0 +1,95 @@
+services:
+
+    # PHP приложение - Конфигурация для PHP-FPM
+    app:
+        # Задает имя контейнера
+        container_name: app
+        # Определяет контекст сборки и путь к Dockerfile
+        build:
+            context: .
+            dockerfile: ./.docker/php/Dockerfile
+        # Монтирует локальную директорию проекта в контейнер
+        volumes:
+            -  .:${DOCKER_BASE_PATH}
+        # Задает зависимость от сервиса db
+        depends_on:
+            - db
+        # Подключает к сети app-network
+        networks:
+            - app-network
+        # Для PHP-FPM можно проверить, что сервис отвечает на запросы
+        healthcheck:
+            test: [ "CMD", "curl", "-f", "http://localhost" ]
+            interval: 30s
+            retries: 3
+            start_period: 30s
+            timeout: 10s
+
+    # Сервер
+    nginx:
+        # Задает имя контейнера
+        container_name: nginx
+        # Использует официальный образ Nginx
+        image: nginx:1.26.2
+        # Пробрасывает порты 80 и 443 из контейнера на хост
+        ports:
+            - "80:80"
+            - "443:443"
+        # Монтирует локальные файлы конфигурации и проект в контейнер
+        volumes:
+            - .:${DOCKER_BASE_PATH}
+            - ./.docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+        # Подключает к сети app-network
+        networks:
+            - app-network
+        # Для Nginx можно проверять, что веб-сервер отвечает на запросы:
+        healthcheck:
+            test: [ "CMD", "curl", "-f", "http://localhost" ]
+            interval: 30s
+            retries: 3
+            start_period: 30s
+            timeout: 10s
+
+    # База данных
+    db:
+        # Задает имя контейнера
+        container_name: db
+        # Использует официальный образ MySQL
+        image: mysql:9.0.1
+        # Устанавливает переменные окружения для базы данных
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+        # Пробрасывает порты 3306 из контейнера на хост
+        ports:
+            - "3306:3306"
+        # Монтирует volume для хранения данных базы данных
+        volumes:
+            - db-data:/var/lib/mysql
+            - db-logs:/var/log/mysql
+        # Подключает к сети app-network
+        networks:
+            - app-network
+        # Перезапускать контейнер, если он остановился, кроме случаев, когда остановлен вручную
+        restart: unless-stopped
+        # Для MySQL можно использовать mysqladmin для проверки состояния базы данных:
+        healthcheck:
+            test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+            interval: 30s
+            retries: 3
+            start_period: 30s
+            timeout: 10s
+
+# Определяет volume для хранения данных MySQL
+volumes:
+    db-data:
+        driver: local
+    db-logs:
+        driver: local
+
+# Определяет сеть для связи между сервисами
+networks:
+    app-network:
+        driver: bridge
