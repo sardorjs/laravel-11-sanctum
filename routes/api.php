@@ -56,7 +56,7 @@ Route::prefix('/tokens')->group(function(){
 
         $chosenAbility = array_key_exists($abilityId, $abilities) ? $abilities[$abilityId] : $abilities[0];
 
-        $token = $user->createToken('access_token', $chosenAbility)->plainTextToken;
+        $token = $user->createToken('access_token', $chosenAbility, now()->addMinutes(2))->plainTextToken;
 
         return ['token' => $token];
     });
@@ -89,6 +89,18 @@ Route::prefix('/tokens')->group(function(){
             'success' => true,
             'data' => [
                 'text' => 'All Tokens Revoked!'
+            ]
+        ]);
+    })->middleware(['auth:sanctum']);
+
+    Route::delete('/revoke-current', function(Request $request){
+        // revoke current
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'text' => 'Current Token Revoked!'
             ]
         ]);
     })->middleware(['auth:sanctum']);
