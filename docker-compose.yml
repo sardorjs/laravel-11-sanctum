@@ -64,7 +64,7 @@ services:
             MYSQL_PASSWORD: ${DB_PASSWORD}
         # Пробрасывает порты 3306 из контейнера на хост
         ports:
-            - "3306:3306"
+            - "13306:3306"
         # Монтирует volume для хранения данных базы данных
         volumes:
             - db-data:/var/lib/mysql

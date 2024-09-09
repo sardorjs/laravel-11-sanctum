@@ -4,6 +4,18 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::get('test', function (){
+
+    $arr = [
+        '1' => 'hello',
+        1 => 'hi',
+        2 => 'bye',
+    ];
+    $var = '1';
+
+    return response()->json($arr[$var]);
+});
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -25,9 +37,32 @@ Route::prefix('/tokens')->group(function(){
         return ['token' => $token->plainTextToken];
     });
 
+    Route::post('/create-with-abilities', function(Request $request){
+        $user = User::factory()->create();
+        $abilities = [
+            0 => [
+                'user'
+            ],
+            1 => [
+                'check-status'
+            ],
+            2 => [
+                'check-status',
+                'place-orders'
+            ],
+        ];
+
+        $abilityId = $request->ability_id ?? 0;
+
+        $chosenAbility = array_key_exists($abilityId, $abilities) ? $abilities[$abilityId] : $abilities[0];
+
+        $token = $user->createToken('access_token', $chosenAbility)->plainTextToken;
+
+        return ['token' => $token];
+    });
+
     Route::get('/has-superadmin-abilities', function(){
         $user = User::where('id', 1)->first();
-        dd($user->tokens, 'admin:superadmin', $user->currentAccessToken(),  $user->tokenCan('admin:superadmin'));
         if(! $user->tokenCan('admin:superadmin')){
             return response()->json([
                 'success' => false,
@@ -36,7 +71,7 @@ Route::prefix('/tokens')->group(function(){
                     ]
                 ], 403);
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -45,6 +80,55 @@ Route::prefix('/tokens')->group(function(){
         ], 200);
 
     });
+
+    Route::delete('/revoke-all', function (Request $request){
+        // revoke all tokens
+        $request->user()->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'text' => 'All Tokens Revoked!'
+            ]
+        ]);
+    })->middleware(['auth:sanctum']);
+
     
+
+
 });
+
+Route::post('/token-can', function (Request $request) {
+
+    $tokenCan = 'check-status';
+    $message = $request->user()->tokenCan($tokenCan) ? 'Yes, Token Can!' : 'No, Token Cannot!';
+
+    return response()->json([
+        'message' => $message,
+    ]);
+
+})->middleware('auth:sanctum');
+
+Route::get('/orders', function (){
+   // Token has both "check-status" and "place-orders" abilities ...
+
+    return response()->json([
+       'success' => true,
+       'data' => [
+           'text' => 'Congrats! You have both check-status and place-orders abilities!'
+       ],
+    ]);
+})->middleware(['auth:sanctum', 'abilities:check-status,place-orders']);
+
+
+Route::get('/flights', function(){
+    // Token has the "check-status" or "place-orders" ability...
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'text' => 'Congrats! You have check-status or place-orders ability!'
+        ]
+    ]);
+})->middleware(['auth:sanctum', 'ability:check-status,place-orders']);
 
