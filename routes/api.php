@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('test', function (){
@@ -144,3 +145,37 @@ Route::get('/flights', function(){
     ]);
 })->middleware(['auth:sanctum', 'ability:check-status,place-orders']);
 
+
+
+
+// ----------------- SPA -----------------
+
+
+Route::post('/authenticate', function(Request $request){
+    $credentials = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required'],
+    ]);
+
+    if (Auth::attempt($credentials)) {
+        $request->session()->regenerate();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'text' => 'Congrats! Good job' 
+            ],
+            'errors' => []
+        ], 200);
+    }
+
+    return response()->json([
+        'success' => false,
+        'data' => [
+            'text' => 'You have an errors!' 
+        ],
+        'errors' => [
+            'email' => 'The provided credentials do not match our records.',
+        ]
+    ], 401);
+});
